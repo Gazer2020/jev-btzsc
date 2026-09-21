@@ -1,0 +1,33 @@
+[project]
+name = "jev-btzsc"
+version = "0.1.0"
+description = "Phase A 400-call Jev pilot on BTZSC (strict zero-shot text classification)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "gazer" }]
+dependencies = [
+    "datasets>=2.18.0",
+    "numpy>=1.24.0",
+    "python-dotenv>=1.0.0",
+    "scikit-learn>=1.4.0",
+    "typesafe-sdk>=0.7.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[project.scripts]
+jev-btzsc = "jev_btzsc.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+
+[tool.uv]
+package = true
