@@ -24,6 +24,9 @@ QUESTION_NAME = "label"
 # TypeSafe list price as of the Jev launch post (output tokens are free).
 INPUT_USD_PER_MILLION_TOKENS = 0.042
 PILOT_BUDGET_USD = 0.10
+FULL_HARD_STOP_USD = 4.50
+FULL_TARGET_USD = 3.00
+CURRENT_VALID_TAG = "BTZSC-current-valid"
 
 PAPER_ALIGNED_TAG = "paper-table1"
 CURRENT_REVISION_TAG = "BTZSC-current"
@@ -170,6 +173,15 @@ PILOT_DATASETS: tuple[PilotDatasetSpec, ...] = (
 )
 
 PILOT_TOTAL_CALLS = sum(spec.n_samples for spec in PILOT_DATASETS)
+
+FULL_RUN_DATASETS: tuple[str, ...] = (
+    "banking77",
+    "massive",
+    "empathetic",
+    "emotiondair",
+    "agnews",
+    "financialphrasebank",
+)
 
 
 def option_id(index: int) -> str:

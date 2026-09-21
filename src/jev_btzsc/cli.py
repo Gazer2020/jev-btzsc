@@ -82,6 +82,52 @@ def cmd_precheck(args: argparse.Namespace) -> int:
     return 0 if report["paper_aligned"] else 2
 
 
+def cmd_rescore_banking77(args: argparse.Namespace) -> int:
+    from jev_btzsc.io import write_json
+    from jev_btzsc.rescore import rescore_pilot_banking77
+
+    report = rescore_pilot_banking77(
+        predictions_path=Path(args.predictions),
+        sample_manifest_path=Path(args.manifest) if args.manifest else None,
+        cache_dir=_cache_dir(),
+    )
+    out = Path(args.output)
+    write_json(out, report)
+    print(f"tag:        {report['tag']}")
+    print(f"revision:   {report['revision_tag']}")
+    print(f"N_raw:      {report['n_raw']}")
+    print(f"N_valid:    {report['n_valid']}")
+    print(f"N_OOS:      {report['n_oos']}")
+    print(f"N_anomaly:  {report['n_anomaly']}")
+    print(f"accuracy:   {report['accuracy_valid']:.6f}")
+    print(f"macro-F1:   {report['macro_f1_valid']:.6f}")
+    print(f"wrote:      {out}")
+    return 0
+
+
+def cmd_full(args: argparse.Namespace) -> int:
+    from jev_btzsc.full_run import run_full
+    from jev_btzsc.protocol import FULL_HARD_STOP_USD
+
+    try:
+        summary = run_full(
+            output_dir=Path(args.output),
+            cache_dir=_cache_dir(),
+            hard_stop=float(args.hard_stop or FULL_HARD_STOP_USD),
+            store_dir=Path(args.store) if args.store else None,
+        )
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(f"status: {summary.get('status')}")
+    print(f"cost:   ${summary.get('cost_usd'):.6f}")
+    print(f"tokens: {summary.get('input_tokens')}")
+    print(f"wrote:  {args.output}")
+    if summary.get("status") != "complete":
+        return 3
+    return 0
+
+
 def cmd_pilot(args: argparse.Namespace) -> int:
     from jev_btzsc.pilot import run_pilot
 
@@ -125,6 +171,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Check only the four pilot datasets (still requires Banking77 == 77).",
     )
     pre_p.set_defaults(func=cmd_precheck)
+
+    rescore_p = sub.add_parser(
+        "rescore-banking77",
+        help="Rescore pilot Banking77 with BTZSC-current-valid. No Jev calls.",
+    )
+    rescore_p.add_argument("--predictions", default="artifacts/pilot/predictions.jsonl")
+    rescore_p.add_argument("--manifest", default="artifacts/pilot/sample_manifest.json")
+    rescore_p.add_argument("--output", default="artifacts/pilot/banking77-valid.json")
+    rescore_p.set_defaults(func=cmd_rescore_banking77)
+
+    full_p = sub.add_parser(
+        "full",
+        help="Full-split Jev run on six datasets. Requires TYPESAFE_API_KEY. Hard stop $4.50.",
+    )
+    full_p.add_argument("--output", default="artifacts/full-run")
+    full_p.add_argument("--store", default=None)
+    full_p.add_argument("--hard-stop", type=float, default=None)
+    full_p.set_defaults(func=cmd_full)
 
     pilot_p = sub.add_parser("pilot", help="Run the 400 Jev Choice calls. Requires TYPESAFE_API_KEY.")
     pilot_p.add_argument("--output", default="artifacts/pilot")

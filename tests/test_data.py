@@ -36,7 +36,7 @@ def test_group_paired_rows_uses_first_text_block() -> None:
     assert grouped.verbalizers[0].endswith("positive")
 
 
-def test_no_positive_candidate_is_not_mapped_to_class_zero() -> None:
+def test_no_positive_candidate_is_oos_not_class_zero() -> None:
     grouped = group_paired_rows(
         name="banking77",
         texts=["oos", "oos"],
@@ -45,7 +45,24 @@ def test_no_positive_candidate_is_not_mapped_to_class_zero() -> None:
         label_texts=["a", "b"],
         n_classes=2,
     )
-    assert grouped.n_no_positive == 1
+    assert grouped.n_oos == 1
+    assert grouped.n_anomaly == 0
+    assert grouped.examples[0].reference_index is None
+    assert grouped.examples[0].validity == "oos"
+
+
+def test_multi_positive_is_anomaly() -> None:
+    grouped = group_paired_rows(
+        name="banking77",
+        texts=["x", "x"],
+        hypotheses=["intent a", "intent b"],
+        binary_labels=[1, 1],
+        label_texts=["a", "b"],
+        n_classes=2,
+    )
+    assert grouped.n_anomaly == 1
+    assert grouped.n_oos == 0
+    assert grouped.examples[0].validity == "anomaly"
     assert grouped.examples[0].reference_index is None
 
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Literal, Sequence
 
 import numpy as np
 from datasets import concatenate_datasets, load_dataset
@@ -24,6 +24,19 @@ from jev_btzsc.protocol import (
 )
 
 
+Validity = Literal["valid", "oos", "anomaly"]
+
+
+def classify_entailment(binary_labels: Sequence[int]) -> tuple[Validity, int | None]:
+    """BTZSC-current-valid: 1 positive → eval; 0 → OOS; >1 → anomaly."""
+    positives = [j for j, flag in enumerate(binary_labels) if int(flag) == 1]
+    if len(positives) == 1:
+        return "valid", positives[0]
+    if len(positives) == 0:
+        return "oos", None
+    return "anomaly", None
+
+
 @dataclass(frozen=True)
 class GroupedExample:
     grouped_index: int
@@ -33,6 +46,8 @@ class GroupedExample:
     binary_labels: tuple[int, ...]
     reference_index: int | None
     text_sha256: str
+    validity: Validity
+    n_positives: int
 
 
 @dataclass(frozen=True)
@@ -46,6 +61,8 @@ class GroupedDataset:
     examples: tuple[GroupedExample, ...]
     n_rows: int
     n_no_positive: int
+    n_oos: int
+    n_anomaly: int
     harness_pattern_n_classes: int
     first_text_n_classes: int
 
@@ -109,7 +126,8 @@ def group_paired_rows(
     n_rows = len(texts)
     n_groups = n_rows // resolved_n
     examples: list[GroupedExample] = []
-    n_no_positive = 0
+    n_oos = 0
+    n_anomaly = 0
     verbalizers: tuple[str, ...] | None = None
     first_label_texts: tuple[str, ...] | None = None
 
@@ -124,12 +142,12 @@ def group_paired_rows(
         if verbalizers is None:
             verbalizers = sample_verbalizers
             first_label_texts = sample_label_texts
-        positives = [j for j, flag in enumerate(sample_binary) if flag == 1]
-        if len(positives) != 1:
-            n_no_positive += 1
-            reference_index = None
-        else:
-            reference_index = positives[0]
+        validity, reference_index = classify_entailment(sample_binary)
+        n_positives = sum(1 for flag in sample_binary if flag == 1)
+        if validity == "oos":
+            n_oos += 1
+        elif validity == "anomaly":
+            n_anomaly += 1
         text = texts[offset]
         digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
         examples.append(
@@ -141,6 +159,8 @@ def group_paired_rows(
                 binary_labels=sample_binary,
                 reference_index=reference_index,
                 text_sha256=digest,
+                validity=validity,
+                n_positives=n_positives,
             )
         )
 
@@ -153,7 +173,9 @@ def group_paired_rows(
         label_texts=first_label_texts or (),
         examples=tuple(examples),
         n_rows=n_rows,
-        n_no_positive=n_no_positive,
+        n_no_positive=n_oos + n_anomaly,
+        n_oos=n_oos,
+        n_anomaly=n_anomaly,
         harness_pattern_n_classes=pattern_n,
         first_text_n_classes=text_n,
     )
@@ -220,6 +242,8 @@ def inspect_dataset(
         examples=grouped.examples,
         n_rows=n_rows,
         n_no_positive=grouped.n_no_positive,
+        n_oos=grouped.n_oos,
+        n_anomaly=grouped.n_anomaly,
         harness_pattern_n_classes=grouped.harness_pattern_n_classes,
         first_text_n_classes=grouped.first_text_n_classes,
     )
