@@ -88,7 +88,7 @@ Full test splits on six datasets (order: banking77 → massive → empathetic �
 uv run jev-btzsc full --output artifacts/full-run --hard-stop 4.50
 ```
 
-Artifacts under `artifacts/` are gitignored (predictions, probability vectors, dumps). This repository publishes the harness and this README only.
+Artifacts under `artifacts/` are gitignored (full probability vectors and other dumps). Published input–prediction pairs are under [`results/`](results/).
 
 ## Results
 
@@ -133,6 +133,15 @@ Hard stop $4.50 **not hit**. Hosted p50 ~145 ms is not a China→US-adjusted spe
 | hard stop | $4.50 (not reached) |
 | equal-weight acc (valid) | 0.758 |
 | equal-weight macro-F1 (valid) | 0.735 |
+
+## Input–prediction pairs
+
+Each line is one original input text and Jev’s predicted class (Choice id `L000…` plus the official BTZSC verbalizer). Gold label is included when the grouped sample has a single entailment. Probability vectors are not published.
+
+- [`results/full/<dataset>.jsonl`](results/full/) — full test splits (18,886 examples)
+- [`results/pilot/<dataset>.jsonl`](results/pilot/) — Phase A 100-example slices (400 examples)
+
+Joined from stored predictions via `grouped_index`, checked against `text_sha256` on the pinned Hugging Face revision. No extra Jev calls.
 
 ## Notes
 
